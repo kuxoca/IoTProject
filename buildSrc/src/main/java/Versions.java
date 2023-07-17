@@ -4,4 +4,5 @@ public interface Versions {
     String grpc = "1.44.1";
     String postgresql = "42.6.0";
     String pengrad = "6.7.0";
+    String logback = "1.4.5";
 }

@@ -6,11 +6,16 @@ plugins {
 sourceCompatibility = JavaVersion.VERSION_17
 targetCompatibility = JavaVersion.VERSION_17
 
+
 dependencies {
-    implementation 'org.springframework.boot:spring-boot-starter'
+    implementation ('org.springframework.boot:spring-boot-starter') {
+        exclude group: 'commons-logging', module: 'commons-logging'
+    }
 
     compileOnly 'org.projectlombok:lombok'
     annotationProcessor 'org.projectlombok:lombok'
+
+    implementation 'ch.qos.logback:logback-classic'
 }
 
 tasks.withType(JavaCompile).configureEach {

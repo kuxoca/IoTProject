@@ -29,6 +29,7 @@ allprojects {
 
             dependency("com.github.pengrad:java-telegram-bot-api:${Versions.pengrad}")
             dependency("org.postgresql:postgresql:${Versions.postgresql}")
+            dependency("ch.qos.logback:logback-classic:${Versions.logback}")
         }
     }
 
