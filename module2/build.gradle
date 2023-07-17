@@ -1,0 +1,20 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot'
+}
+
+sourceCompatibility = JavaVersion.VERSION_17
+targetCompatibility = JavaVersion.VERSION_17
+
+dependencies {
+    implementation 'org.springframework.boot:spring-boot-starter'
+
+    compileOnly 'org.projectlombok:lombok'
+    annotationProcessor 'org.projectlombok:lombok'
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.with {
+        encoding = 'UTF-8'
+    }
+}

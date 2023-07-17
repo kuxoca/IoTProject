@@ -1,0 +1,48 @@
+plugins {
+    id "io.spring.dependency-management" version "1.1.0"
+    id 'com.github.johnrengelman.shadow' version '7.1.2' apply false
+    id "org.springframework.boot" version "3.0.1" apply false
+}
+
+allprojects {
+    group "ppzeff"
+
+    repositories {
+        mavenLocal()
+        mavenCentral()
+    }
+
+    apply plugin: "io.spring.dependency-management"
+    dependencyManagement {
+        dependencies {
+            imports {
+                mavenBom "org.springframework.boot:spring-boot-dependencies:3.0.1"
+                mavenBom "org.testcontainers:testcontainers-bom:1.17.6"
+                mavenBom "com.google.protobuf:protobuf-bom:3.21.12"
+            }
+            dependency("org.projectlombok:lombok:${Versions.lombok}")
+            dependency("com.google.code.gson:gson:${Versions.gson}")
+
+            dependency("io.grpc:grpc-netty:${Versions.grpc}")
+            dependency("io.grpc:grpc-protobuf:${Versions.grpc}")
+            dependency("io.grpc:grpc-stub:${Versions.grpc}")
+
+            dependency("com.github.pengrad:java-telegram-bot-api:${Versions.pengrad}")
+            dependency("org.postgresql:postgresql:${Versions.postgresql}")
+        }
+    }
+
+    configurations.configureEach {
+        resolutionStrategy {
+            failOnVersionConflict()
+        }
+        resolutionStrategy {
+        }
+    }
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.with {
+        encoding = 'UTF-8'
+    }
+}
