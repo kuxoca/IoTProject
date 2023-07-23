@@ -78,16 +78,4 @@ shadowJar {
 }
 tasks.build.dependsOn tasks.shadowJar
 
-test {
-    useJUnitPlatform()
-    testLogging {
-        events "passed", "skipped", "failed"
-    }
-}
-
-tasks.withType(JavaCompile).configureEach {
-    options.with {
-        encoding = 'UTF-8'
-    }
-}
 
