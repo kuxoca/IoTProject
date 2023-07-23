@@ -1,7 +1,7 @@
 package ppzeff.recognize.sber.speech;
 
 import com.google.protobuf.ByteString;
-import io.grpc.Channel;
+import io.grpc.ManagedChannel;
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
@@ -15,8 +15,6 @@ import ppzeff.recognize.sber.autsber.ServiceAccessToken;
 import ppzeff.recognize.sber.config.BearerTokenSber;
 
 import javax.net.ssl.SSLException;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -26,15 +24,13 @@ import java.util.function.Consumer;
 public class ServiceSberRecognitionGRPC implements RecognizeService {
     private final ServiceAccessToken serviceAccessToken;
     private final Recognition.RecognitionRequest configRequest;
-    private final SslContext sslCtx;
     public static final String SMARTSPEECH = "smartspeech.sber.ru";
-    private CountDownLatch latch;
-
+    private final ManagedChannel channel;
 
     public ServiceSberRecognitionGRPC(ServiceAccessToken serviceAccessToken) throws SSLException {
         this.serviceAccessToken = serviceAccessToken;
 
-        sslCtx = GrpcSslContexts.forClient()
+        SslContext sslCtx = GrpcSslContexts.forClient()
                 .trustManager(InsecureTrustManagerFactory.INSTANCE)
                 .build();
         configRequest = Recognition.RecognitionRequest.newBuilder()
@@ -44,39 +40,31 @@ public class ServiceSberRecognitionGRPC implements RecognizeService {
                                         Recognition.RecognitionOptions.AudioEncoding.OPUS_VALUE)
                                 .build())
                 .build();
+        channel = NettyChannelBuilder.forTarget(SMARTSPEECH).sslContext(sslCtx).build();
     }
 
     @Override
     public void recognize(byte[] bytes, Consumer<String> callback) {
-        recognize(bytes, "RU-ru", callback);
-    }
-
-    @Override
-    public void recognize(byte[] bytes, String lang, Consumer<String> callback) {
-        latch = new CountDownLatch(1);
-        var channel = NettyChannelBuilder.forTarget(SMARTSPEECH).sslContext(sslCtx).build();
         try {
-            sendRequest(bytes, channel, callback);
-            latch.await(2L, TimeUnit.SECONDS);
+            recognize(bytes, "RU-ru", callback);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
-        } finally {
-            channel.shutdown();
-            log.trace("channel.shutdown()");
         }
     }
 
-    private StreamObserver<Recognition.RecognitionResponse> getResponseObserver(Consumer<String> callback) {
-        log.info("create streamObserver");
-        final CountDownLatch finishLatch = new CountDownLatch(1);
+    @Override
+    public void recognize(byte[] bytes, String lang, Consumer<String> callback) throws InterruptedException {
 
-        var streamObserver = new StreamObserver<Recognition.RecognitionResponse>() {
+        var stub = createStub();
+
+        final CountDownLatch finishLatch = new CountDownLatch(1);
+        StreamObserver<Recognition.RecognitionResponse> streamObserver = new StreamObserver<>() {
+
             @Override
             public void onNext(Recognition.RecognitionResponse value) {
                 log.trace("StreamObserver: onNext");
                 List<Recognition.Hypothesis> resultsList = value.getResultsList();
                 for (Recognition.Hypothesis hypothesis : resultsList) {
-//                    log.info(hypothesis.getNormalizedText());
                     callback.accept(hypothesis.getNormalizedText());
                 }
             }
@@ -94,27 +82,28 @@ public class ServiceSberRecognitionGRPC implements RecognizeService {
                 log.trace("StreamObserver: onCompleted");
             }
         };
-        return streamObserver;
+
+        Recognition.RecognitionRequest request = Recognition.RecognitionRequest.newBuilder()
+                .setAudioChunk(ByteString.copyFrom(bytes))
+                .build();
+
+
+        var requestStreamObserver = stub.recognize(streamObserver);
+        requestStreamObserver.onNext(configRequest);
+        requestStreamObserver.onNext(request);
+        requestStreamObserver.onCompleted();
+        finishLatch.await();
     }
 
-    private void sendRequest(byte[] bytes, Channel channel, Consumer<String> display) {
-        try {
-            var accessToken = serviceAccessToken.getAccessToken();
-            var bearerToken = new BearerTokenSber(accessToken);
-            var stub = SmartSpeechGrpc.newStub(channel).withCallCredentials(bearerToken);
-            var requestStreamObserver = stub.recognize(getResponseObserver(display));
-
-            requestStreamObserver.onNext(configRequest);
-            requestStreamObserver.onNext(
-                    Recognition.RecognitionRequest.newBuilder()
-                            .setAudioChunk(ByteString.readFrom(new ByteArrayInputStream(bytes)))
-                            .build()
-            );
-            requestStreamObserver.onCompleted();
-        } catch (RuntimeException e) {
-//
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
+    @Override
+    public void shutdown() throws InterruptedException {
+        channel.shutdown().awaitTermination(5, TimeUnit.SECONDS);
     }
+
+    private SmartSpeechGrpc.SmartSpeechStub createStub() {
+        var accessToken = serviceAccessToken.getAccessToken();
+        var bearerToken = new BearerTokenSber(accessToken);
+        return SmartSpeechGrpc.newStub(channel).withCallCredentials(bearerToken);
+    }
+
 }

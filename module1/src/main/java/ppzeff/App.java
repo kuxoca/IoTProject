@@ -14,13 +14,14 @@ import java.util.concurrent.Executors;
 
 @Slf4j
 public class App {
-    private static final ExecutorService executorService = Executors.newFixedThreadPool(3);
+    private static final ExecutorService executorService = Executors.newFixedThreadPool(2);
 
     public static void main(String[] args) throws IOException {
+
         byte[] bytes = Files.readAllBytes(Path.of("audio_2023-07-22_18-21-29.ogg"));
 
         RecognizeService recognizeService = new ServiceSberRecognitionGRPC(ServiceAccessTokenSber.getInstance());
-        for (int i = 0; i <= 5; i++) {
+        for (int i = 1; i <= 5; i++) {
             int finalI = i;
             executorService.submit(() -> recognizeService.recognize(bytes, s -> log.info("{}, {}", s, finalI)));
 
