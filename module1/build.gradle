@@ -1,6 +1,8 @@
 plugins {
     id 'java'
     id 'com.github.johnrengelman.shadow'
+    id "com.google.protobuf" version "0.8.16"
+    id 'idea'
 }
 
 sourceCompatibility = JavaVersion.VERSION_17
@@ -12,6 +14,58 @@ dependencies {
     annotationProcessor 'org.projectlombok:lombok'
 
     implementation 'ch.qos.logback:logback-classic'
+
+    implementation "com.fasterxml.jackson.core:jackson-databind"
+    implementation "io.jsonwebtoken:jjwt:0.9.1"
+    implementation "io.grpc:grpc-netty-shaded:${Versions.grpc}"
+    implementation "io.grpc:grpc-protobuf:${Versions.grpc}"
+    implementation "io.grpc:grpc-stub:${Versions.grpc}"
+    implementation "com.google.protobuf:protobuf-java"
+    implementation "com.google.errorprone:error_prone_annotations:${Versions.errorProneAnnotations}"
+
+    implementation "org.apache.tomcat:annotations-api:${Versions.tomcatAnnotationsApi}"
+    implementation "javax.annotation:javax.annotation-api:1.3.2"
+    implementation "javax.xml.bind:jaxb-api:2.3.1"
+}
+
+def filesBaseDir = "$projectDir/build/generated"
+def protoSrcDir = "$projectDir/build/generated/proto"
+def grpcSrcDir = "$projectDir/build/generated/grpc"
+
+sourceSets {
+    main {
+        proto {
+            srcDir protoSrcDir
+        }
+        java {
+            srcDir grpcSrcDir
+        }
+    }
+}
+
+idea {
+    module {
+        sourceDirs += file(protoSrcDir);
+        sourceDirs += file(grpcSrcDir);
+    }
+}
+
+protobuf {
+    protoc {
+        artifact = 'com.google.protobuf:protoc:3.12.1'
+    }
+
+    plugins {
+        grpc {
+            artifact = 'io.grpc:protoc-gen-grpc-java:1.30.2'
+
+        }
+    }
+
+    generatedFilesBaseDir = filesBaseDir
+    generateProtoTasks {
+        ofSourceSet('main')*.plugins { grpc {} }
+    }
 }
 
 shadowJar {
@@ -22,5 +76,6 @@ shadowJar {
         attributes 'Main-Class': 'ppzeff.App'
     }
 }
-
 tasks.build.dependsOn tasks.shadowJar
+
+
